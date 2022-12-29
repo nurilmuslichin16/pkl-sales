@@ -14,6 +14,7 @@ class Upload extends MY_Controller
 	private $filename_jadwal 	= "jadwal_bulk";
 	private $filename_dorongps 	= "dorongps_bulk";
 	private $filename_risma  	= "risma_bulk";
+	private $filename_reset 	= "reset_bulk";
 
 	public function __construct()
 	{
@@ -1538,7 +1539,7 @@ class Upload extends MY_Controller
 
 									array_push($data_log, array(
 										'sales_id'          => $sales_id,
-										'action_by'         => 'System-Upload Bulk Dorong PS - SYSTEM',
+										'action_by'         => $this->session->userdata('nama') . ' - Upload Bulk Dorong PS',
 										'action_on'         => date('Y-m-d H:i:s'),
 										'action_status'     => 10
 									));
@@ -1621,6 +1622,120 @@ class Upload extends MY_Controller
 		$data['subtitle'] 	 = 'Geser Status Order PS';
 		$this->load->view('template', [
 			'content' => $this->load->view('sales/upload/dorong_ps', $data, true)
+		]);
+	}
+
+	public function reset_order()
+	{
+		if (isset($_POST['upload'])) {
+			$userweb_id    = $this->session->userdata('user_id');
+			$userweb_name  = $this->session->userdata('nama');
+
+			$upload = $this->upload_model->upload_file($this->filename_reset);
+
+			if ($upload['result'] == "success") {
+				include APPPATH . 'third_party/PHPExcel/PHPExcel.php';
+
+				$loadexcel = PHPExcel_IOFactory::load('uploads/' . $this->filename_reset . '.xlsx');
+
+				$sheet = $loadexcel->getActiveSheet()->toArray(null, true, true, true);
+				$data_sales = array();
+				$data_log 	= array();
+				$data_provi = array();
+				$datenow	= date('Y-m-d H:i:s');
+
+				$a = 'JA';
+				if ($a != $sheet[1]['A']) {
+					$this->session->set_flashdata('error', '<b>Failed!</b> <br> Format file RESET ORDER tidak sesuai! ');
+				} else {
+					$numrow = 1;
+					foreach ($sheet as $row) {
+						if ($numrow > 1) {
+							if ($row['A'] != "" || $row['A'] != null) {
+								$sales_id	= str_replace("JA", "", $row['A']);
+								$dta        = $this->db->get_where('tb_sales', array('sales_id' => $sales_id))->row_array();
+								if (!empty($dta)) { //cek myir di database
+									array_push($data_sales, array(
+										'sales_id'        	=> $sales_id,
+										'sc'     			=> null,
+										'new_sc'     		=> null,
+										'req_sc_odp'     	=> null,
+										'req_sc_port'     	=> null,
+										'req_sc_dc'     	=> null,
+										'progress_by'     	=> null,
+										'progress_to'     	=> null,
+										'req_sc_by'     	=> null,
+										'input_sc_by'     	=> null,
+										'progress_sc_by'    => null,
+										'tgl_progress'     	=> null,
+										'tgl_req_sc'     	=> null,
+										'tgl_input_sc'     	=> null,
+										'tgl_req_act'     	=> null,
+										'tgl_lapor_k'     	=> null,
+										'tgl_update'      	=> $datenow,
+										'status'          	=> 'scbe',
+										'status_id'  	  	=> 1,
+										'kendala'     		=> null,
+										'keterangan'      	=> 'BULK RESET ORDER TO AMUNISI'
+									));
+
+									array_push($data_log, array(
+										'sales_id'          => $sales_id,
+										'action_by'         => $this->session->userdata('nama') . ' - Upload Bulk RESET ORDER',
+										'action_on'         => date('Y-m-d H:i:s'),
+										'action_status'     => 1
+									));
+
+									$this->db->delete('tb_provisioning ', array('sc' => $dta['new_sc']));
+
+									/*send message to grup*/
+									$text = "<b>[$dta[datel]]</b>\n";
+									$text .= "JA$sales_id \n";
+									$text .= "$dta[nama_pelanggan]\n";
+									$text .= "CP : $dta[cp]\n\n";
+									$text .= "⚠️ Status Order Menjadi Amunisi oleh $userweb_name - Upload Bulk Reset Order\n\n";
+									$message_text .= " ~ $userweb_name";
+
+									sendChatHtml('-463350751', $text);
+									/*end of send message to grup*/
+
+									/*send message to sales*/
+									$telegram_id = $dta['message_from'];
+									$meid        = $dta['message_id'];
+									$sales_id    = $dta['sales_id'];
+									$message_text = "ORDER SET TO : WO \n";
+									$message_text .= "JA$sales_id\n";
+									$message_text .= "KET :\n";
+									$message_text .= "$userweb_name - Upload Bulk Reset Order\n\n";
+									$message_text .= " ~ $userweb_name";
+
+									sendMessage($telegram_id, $message_text, $meid);
+									/*end of send message to sales*/
+								}
+							}
+						}
+						$numrow++;
+					}
+
+					if (!empty($data_sales)) {
+						$this->db->update_batch('tb_sales', $data_sales, 'sales_id');
+					}
+
+					if (!empty($data_log)) {
+						$this->db->insert_batch('tb_log', $data_log);
+					}
+
+					$this->session->set_flashdata('info', '<b>Well Done</b> <br> Data sucessfully uploaded!');
+					redirect('sales/upload/reset_order');
+				}
+			} else {
+				$data['upload_error'] = $upload['error'];
+			}
+		}
+		$data['title'] 		 = 'Reset Order';
+		$data['subtitle'] 	 = 'Ubah Status Order Menjadi Amunisi / WO';
+		$this->load->view('template', [
+			'content' => $this->load->view('sales/upload/reset_order', $data, true)
 		]);
 	}
 

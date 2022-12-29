@@ -112,6 +112,11 @@
                     <span class="site-menu-title">Upload Dorong PS</span>
                   </a>
                 </li>
+                <li class="site-menu-item">
+                  <a class="animsition-link" href="<?= site_url('sales/upload/reset_order'); ?>">
+                    <span class="site-menu-title">Upload Reset Order</span>
+                  </a>
+                </li>
               </ul>
             </li>
           <?php } ?>

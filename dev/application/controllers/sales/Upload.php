@@ -1641,7 +1641,6 @@ class Upload extends MY_Controller
 				$sheet = $loadexcel->getActiveSheet()->toArray(null, true, true, true);
 				$data_sales = array();
 				$data_log 	= array();
-				$data_provi = array();
 				$datenow	= date('Y-m-d H:i:s');
 
 				$a = 'JA';
@@ -1686,7 +1685,9 @@ class Upload extends MY_Controller
 										'action_status'     => 1
 									));
 
-									$this->db->delete('tb_provisioning ', array('sc' => $dta['new_sc']));
+									if ($dta['new_sc'] != null && $dta['new_sc'] != '') {
+										$this->db->delete('tb_provisioning ', array('sc' => $dta['new_sc']));
+									}
 
 									/*send message to grup*/
 									$text = "<b>[$dta[datel]]</b>\n";

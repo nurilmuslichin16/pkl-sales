@@ -4,7 +4,7 @@
   }
 </style>
 <!-- form start -->
-<?php echo form_open_multipart('sales/upload/dorong_ps'); ?>
+<?php echo form_open_multipart('sales/upload/reset_order'); ?>
 <?php if (!empty($upload_error)) { ?>
   <div class="alert alert-danger" role="alert">
     <?= $upload_error; ?>

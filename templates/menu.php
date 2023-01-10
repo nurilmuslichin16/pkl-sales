@@ -194,14 +194,14 @@
             </li>
           <?php } ?>
 
-          <?php if (menuUnscEngagement($this->session->userdata('level'))) { ?>
+          <!-- <?php if (menuUnscEngagement($this->session->userdata('level'))) { ?>
             <li class="site-menu-item">
               <a class="animsition-link" href="<?= site_url('sales/unsc_engagement') ?>">
                 <i class="site-menu-icon md-mood" aria-hidden="true"></i>
                 <span class="site-menu-title">UNSC Engagement</span>
               </a>
             </li>
-          <?php } ?>
+          <?php } ?> -->
 
           <li class="site-menu-item">
             <a class="animsition-link" href="<?= site_url('sales/track_order') ?>">

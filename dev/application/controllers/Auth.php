@@ -13,7 +13,11 @@ class Auth extends MY_Controller
 
 	public function login()
 	{
-		$this->load->view('auth/login');
+		if ($this->session->userdata('logged_in') != FALSE) {
+			redirect("welcome");
+		} else {
+			$this->load->view('auth/login');
+		}
 	}
 
 	public function getlogin()
@@ -40,7 +44,7 @@ class Auth extends MY_Controller
 						'user_id' 	=> $user_detail->users_id,
 						'username' 	=> $user_detail->username,
 						'email'  	=> $post['email'],
-						'logged_in' => TRUE,
+						'logged_in' => FALSE,
 						'nama' 		=> $user_detail->fullname,
 						'level' 	=> $user_detail->level,
 						'active' 	=> $user_detail->active
@@ -49,7 +53,18 @@ class Auth extends MY_Controller
 					$this->session->set_userdata($login_data);
 					$this->db->where('users_id', $user_detail->users_id);
 					$this->db->update('tb_users', array('last_login' => date('Y-m-d H:i:s')));
-					redirect(base_url("welcome"));
+
+					$this->sendOtp();
+
+					$cekOTP		= $this->token_model->getToken($user_detail->users_id, 'sales')->row_array();
+
+					if ($cekOTP) {
+						$this->session->set_flashdata('info', '<div class="alert alert-success" role="alert"><strong>Kode OTP</strong> berhasil dikirim.</div>');
+						redirect('auth/otp');
+					} else {
+						$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> User belum Registrasi OTP, silahkan lakukan Registrasi OTP melalui Bot Telegram.</div>');
+						redirect('auth/otp');
+					}
 				} else {
 
 					$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> kombinasi email dan password anda tidak tepat.</div>');
@@ -67,6 +82,80 @@ class Auth extends MY_Controller
 		// 	$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> recaptcha tidak valid, silahkan ulangi.</div>');
 		// 	redirect('auth');
 		// }
+	}
+
+	public function otp()
+	{
+		if ($this->session->userdata('logged_in') != FALSE) {
+			redirect("welcome");
+		}
+
+		if ($this->session->userdata('user_id') !== null) {
+			$user_id	= $this->session->userdata('user_id');
+			$cekOTP		= $this->token_model->getToken($user_id, 'sales')->row_array();
+
+			if ($cekOTP) {
+				$data['time'] = $cekOTP['time'] - time();
+				$this->load->view('auth/otp', $data);
+			} else {
+				$data['time'] = 0;
+				$this->load->view('auth/otp', $data);
+			}
+		} else {
+			$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> Silahkan lakukan login dahulu.</div>');
+			redirect('auth');
+		}
+	}
+
+	public function sendOtp()
+	{
+		$user_id	= $this->session->userdata('user_id');
+		$cekOTP		= $this->token_model->getToken($user_id, 'sales')->row_array();
+
+		if ($cekOTP) {
+			$otp	= random_int(1000, 9999);
+			$text	= "OTP Kamu untuk <b>WEB Jarvis Sales</b> adalah <b>$otp</b>\n";
+			$text	.= "Rahasiakan kode OTP ini. Abaikan jika anda tidak meminta kode OTP";
+
+			$this->token_model->update(['users_id' => $user_id, 'type' => 'sales'], ['token' => $otp, 'time' => time() + (60 * 5)]);
+
+			sendChatHtml($cekOTP['telegram_id'], $text);
+
+			echo json_encode([
+				'status' => true
+			]);
+		} else {
+			echo json_encode([
+				'status' => false
+			]);
+		}
+	}
+
+	public function verifyOtp()
+	{
+		$otp 		= $this->input->post('otp');
+		$user_id	= $this->session->userdata('user_id');
+
+		$cekOTP		= $this->token_model->getToken($user_id, 'sales')->row_array();
+
+		if ($cekOTP) {
+			if ($cekOTP['token'] == $otp) {
+				$time_left	= $cekOTP['time'] - time();
+				if ($time_left > 0) {
+					$this->session->set_userdata(['logged_in' => TRUE]);
+					redirect('welcome');
+				} else {
+					$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> Kode OTP sudah kadaluwarsa.</div>');
+					redirect('auth/otp');
+				}
+			} else {
+				$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> Kode OTP Tidak Valid.</div>');
+				redirect('auth/otp');
+			}
+		} else {
+			$this->session->set_flashdata('info', '<div class="alert alert-danger" role="alert"><strong>Maaf!</strong> User belum Registrasi OTP, silahkan lakukan Registrasi OTP melalui Bot Telegram.</div>');
+			redirect('auth/otp');
+		}
 	}
 
 	public function logout()
